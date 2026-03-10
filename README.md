@@ -208,7 +208,7 @@ FUNCTION login(username, password)
 OPEN browser
 MAXIMIZE browser window
 
-NAVIGATE to "https://opensource-demo.orangehrmlive.com/web/index.php/auth/login"
+NAVIGATE to "URL"
 
 WAIT until username field is visible (max 10 seconds)
 
