@@ -179,3 +179,80 @@ Karena itu, dalam kondisi deadline yang ketat, saya masih bisa menerima risiko i
 - Bug sudah didokumentasikan
 - Dibuatkan ticket untuk perbaikan
 - Dijadwalkan untuk diperbaiki pada sprint berikutnya
+
+# Soal 2 - Automation UI dan Test Engineering Judgment
+
+## Part A - Analisa Automation Existing
+
+Jika saya bergabung dalam tim yang sudah memiliki automation tetapi hasilnya sering flaky, hal pertama yang saya lakukan adalah mencoba memahami mengapa test automation tersebut bisa gagal secara flaky. Berdasarkan pengalaman saya, ada beberapa penyebab mengapa automation UI bisa menjadi flaky.
+
+### 1. Masalah timing issue antara test dan aplikasi
+Automation sangat bergantung pada kondisi halaman, terkadang aplikasi membutuhkan waktu untuk memproses data, menampilkan element, gambar, atau menyelesaikan request API. Jika script automation langsung mencoba klik atau validasi sebelum elemen tersebut benar-benar muncul, maka test bisa gagal walaupun sebenarnya aplikasi tidak bermasalah. Hal ini biasanya terjadi karena script automationnya tidak menggunakan mekanisme wait sama sekali. Dari pengalaman saya, ini adalah penyebab flaky test yang paling sering saya temui.
+
+### 2. Locator atau selector yang berubah-ubah
+Dalam automation UI, test biasanya bergantung pada locator seperti id, class, xpath atau css selector untuk menemukan element di halaman. Jika locator yang digunakan terlalu bergantung pada struktur class yang sering berubah, maka test bisa gagal setiap kali ada perubahan pada UI. Misalnya menggunakan xpath yang sangat panjang. Ketika developer melakukan update UI maka automation test yang menggunakan locator tersebut bisa langsung gagal walaupun secara fungsi aplikasi masih berjalan. Oleh karena itu, penting untuk menggunakan locator yang lebih stabil seperti id.
+
+### 3. Data test yang tidak konsisten
+Penyebab ketiga adalah data test yang tidak konsisten, terutama karena automation berjalan headless di CI. Kondisi environment bisa berbeda antara server dan lokal. Misalnya, data di database berubah atau environment tidak sepenuhnya sinkron dengan versi aplikasi terbaru. Jika automation test bergantung pada data tertentu yang tidak dikontrol dengan baik, maka test bisa gagal secara flaky.
+
+Dari ketiga penyebab tersebut, yang paling sering saya temui secara pribadi adalah masalah timing issue. Banyak automation UI dibuat dengan asumsi bahwa halaman akan selalu memuat dengan cepat, padahal dalam kenyataannya waktu loading bisa berbeda-beda tergantung kondisi network, server, atau proses lainnya yang terjadi di infrastruktur server.
+
+---
+
+## Part B - Design Automation Test
+
+### Pseudocode Login Automation Flow
+
+#### LoginPage Function
+FUNCTION login(username, password)
+OPEN browser
+MAXIMIZE browser window
+
+NAVIGATE to "https://opensource-demo.orangehrmlive.com/web/index.php/auth/login"
+
+WAIT until username field is visible (max 10 seconds)
+
+INPUT username into username field
+INPUT password into password field
+
+CLICK login button
+END FUNCTION
+
+
+#### Test Case Flow
+CREATE instance of LoginPage
+
+CALL login function with:
+username = "Admin"
+password = "admin123"
+
+WAIT until Dashboard title is visible (max 15 seconds)
+
+GET text from Dashboard title
+
+IF Dashboard title equals "Dashboard"
+TEST PASS
+ELSE
+TEST FAIL
+
+CLOSE browser
+
+---
+
+## Part C - Failure Investigation
+
+Jika automation test selalu berhasil di local tetapi gagal di CI, hal pertama yang saya curigakan adalah kemungkinan adanya perbedaan kondisi environment antara local dan CI.
+
+Langkah pertama yang saya lakukan adalah mereview hasil failure di CI secara detail. Saya akan melihat log eksekusi test dan error message yang muncul. Dari log tersebut biasanya sudah bisa terlihat apakah test gagal karena element tidak ditemukan, timeout, assertion gagal, atau dari aplikasi. Ini langkah awal untuk menentukan arah investigasi selanjutnya.
+
+Langkah kedua adalah mencoba mereproduce kondisi CI di local. Kadang automation berjalan dengan versi browser yang berbeda. Karena itu saya akan mencoba menjalankan test di local dengan konfigurasi yang sama dengan CI. Tujuannya untuk memastikan apakah kegagalan tersebut memang hanya terjadi di CI atau sebenarnya bisa direproduksi di kondisi tertentu.
+
+Langkah ketiga adalah memeriksa perbedaan environment antara CI dan local. Beberapa hal yang biasanya di check adalah versi browser, versi driver, konfigurasi environment variable. Dalam beberapa kasus, test gagal karena data di environment CI tidak sama dengan data yang digunakan saat testing di local.
+
+Setelah investigasi dilakukan, saya akan menentukan tindakan terhadap test tersebut berdasarkan hasil temuan. Jika ternyata masalahnya ada pada script automation, misalnya karena mekanisme wait yang kurang tepat atau locator yang tidak stabil, maka test tersebut perlu diperbaiki.
+
+Jika kegagalan disebabkan oleh bug pada aplikasi, maka test tetap dipertahankan dan bug perlu diperbaiki.
+
+Namun jika test tersebut terus gagal karena faktor yang belum bisa diperbaiki dalam waktu dekat, misalnya dependency terhadap service atau environment yang tidak stabil, maka saya bisa mempertimbangkan untuk sementara men-disable test tersebut agar tidak menggangu pipeline CI.
+
+Jika test sudah tidak relevan lagi dengan fitur yang ada atau terlalu mahal untuk dipelihara dibanding manfaatnya, maka opsi terakhir adalah menghapus test tersebut.
